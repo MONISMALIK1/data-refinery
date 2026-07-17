@@ -1,0 +1,6 @@
+transaction_id,transaction_date,amount_aed,merchant_name,category
+T-2001,03/07/2026,"1,150.00",Noon.com,electronics
+T-2002,05/07/2026,89.50,Careem,transport
+T-2002,05/07/2026,89.50,Careem,transport
+T-2003,10/07/2026,"2,300.75",DEWA,utilities
+T-2004,12/07/2026,540.00,Amazon.ae,shopping

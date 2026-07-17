@@ -1,0 +1,7 @@
+txn_id,date,amount,currency,merchant,category
+T-1001,2026-06-02,240.00,AED,Carrefour,grocery
+T-1002,2026-06-05,89.50,AED,Careem,transport
+T-1003,2026-06-09,1200.00,AED,Sharaf DG,electronics
+T-1004,2026-06-15,65.25,AED,Talabat,food
+T-1005,2026-06-21,450.00,AED,DEWA,utilities
+T-1006,2026-06-28,320.10,AED,Lulu Hypermarket,grocery
