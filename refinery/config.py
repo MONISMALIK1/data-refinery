@@ -32,4 +32,4 @@ TRANSACTIONS_BASELINE = {
 # Quality-gate thresholds: score = extractor confidence x field completeness.
 LOAD_THRESHOLD = 0.75
 
-EMBEDDING_DIM = 256
+EMBEDDING_DIM = 384  # all-MiniLM-L6-v2 output dimension; also used as hash-embed fallback dim

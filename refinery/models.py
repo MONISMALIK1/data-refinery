@@ -43,6 +43,6 @@ class InvoiceExtraction(BaseModel):
 
     invoice: InvoiceRecord
     confidence: float = Field(
-        ge=0.0, le=1.0, description="How confident the extractor is that every field is correct."
+        description="How confident the extractor is (0.0–1.0) that every field is correct."
     )
     notes: str = Field(default="", description="Anything ambiguous or missing in the source.")

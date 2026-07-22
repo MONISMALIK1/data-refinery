@@ -16,6 +16,8 @@ import os
 from .warehouse import search_chunks
 
 DEFAULT_MODEL = "claude-sonnet-5"
+OPENROUTER_DEFAULT_MODEL = "anthropic/claude-sonnet-4-5"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 ANSWER_PROMPT = """Answer the question using ONLY the context passages below.
 Cite the source file for every fact, like [source: file.pdf]. If the context
@@ -31,17 +33,31 @@ def answer(question: str, db_path: str, k: int = 3) -> dict:
     hits = search_chunks(db_path, question, k=k)
     sources = sorted({h["source_file"] for h in hits})
 
+    llm = None
+    mode = None
     if os.environ.get("ANTHROPIC_API_KEY") and hits:
         from langchain_anthropic import ChatAnthropic
-
         llm = ChatAnthropic(
             model=os.environ.get("REFINERY_MODEL", DEFAULT_MODEL),
             temperature=0.0,
             max_tokens=1024,
         )
+        mode = "claude"
+    elif os.environ.get("OPENROUTER_API_KEY") and hits:
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(
+            model=os.environ.get("REFINERY_MODEL", OPENROUTER_DEFAULT_MODEL),
+            openai_api_key=os.environ["OPENROUTER_API_KEY"],
+            openai_api_base=OPENROUTER_BASE_URL,
+            temperature=0.0,
+            max_tokens=512,
+        )
+        mode = "openrouter"
+
+    if llm is not None:
         context = "\n\n".join(f"[{h['source_file']}] {h['text']}" for h in hits)
         response = llm.invoke(ANSWER_PROMPT.format(question=question, context=context))
-        return {"answer": response.content, "sources": sources, "hits": hits, "mode": "claude"}
+        return {"answer": response.content, "sources": sources, "hits": hits, "mode": mode}
 
     lines = [f"- {h['text']} [source: {h['source_file']}]" for h in hits]
     text = (

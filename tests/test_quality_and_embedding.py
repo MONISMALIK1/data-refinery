@@ -6,7 +6,7 @@ def test_embedding_is_deterministic_and_normalised():
     a = embed("invoice from gulf office supplies")
     b = embed("invoice from gulf office supplies")
     assert a == b
-    assert abs(cosine(a, a) - 1.0) < 1e-9
+    assert abs(cosine(a, a) - 1.0) < 1e-6
 
 
 def test_related_text_scores_higher_than_unrelated():

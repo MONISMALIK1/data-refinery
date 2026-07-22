@@ -24,6 +24,8 @@ from .fixers import coerce_date, coerce_number
 from .models import EmailRecord, InvoiceExtraction, InvoiceRecord
 
 DEFAULT_MODEL = "claude-sonnet-5"
+OPENROUTER_DEFAULT_MODEL = "anthropic/claude-sonnet-4-5"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 EXTRACTION_PROMPT = """You are a document data-entry specialist. Extract the
 invoice fields from the document text below. If a field is absent, leave it
@@ -120,16 +122,30 @@ class ClaudeExtractor:
         self.model = model or os.environ.get("REFINERY_MODEL", DEFAULT_MODEL)
         self.fallback = RegexInvoiceExtractor()
 
-    def __call__(self, state: dict) -> dict:
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            return self.fallback(state)
-        from langchain_anthropic import ChatAnthropic
+    def _get_llm(self):
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            from langchain_anthropic import ChatAnthropic
+            return ChatAnthropic(model=self.model, temperature=0.0, max_tokens=1024), "claude"
+        if os.environ.get("OPENROUTER_API_KEY"):
+            from langchain_openai import ChatOpenAI
+            model = os.environ.get("REFINERY_MODEL", OPENROUTER_DEFAULT_MODEL)
+            return ChatOpenAI(
+                model=model,
+                openai_api_key=os.environ["OPENROUTER_API_KEY"],
+                openai_api_base=OPENROUTER_BASE_URL,
+                temperature=0.0,
+                max_tokens=1024,
+            ), "openrouter"
+        return None, None
 
-        llm = ChatAnthropic(model=self.model, temperature=0.0, max_tokens=1024)
+    def __call__(self, state: dict) -> dict:
+        llm, method = self._get_llm()
+        if llm is None:
+            return self.fallback(state)
         structured = llm.with_structured_output(InvoiceExtraction)
         result = structured.invoke(EXTRACTION_PROMPT.format(text=state["raw_text"][:8000]))
         return {
             "records": [result.invoice.model_dump()],
             "confidence": result.confidence,
-            "method": "claude",
+            "method": method,
         }
