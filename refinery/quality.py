@@ -19,7 +19,9 @@ REQUIRED_FIELDS = {
 def completeness(records: list[dict], kind: str) -> float:
     required = REQUIRED_FIELDS.get(kind, [])
     if not records or not required:
-        return 0.0 if not records else 1.0
+        # Fail closed: no records, or an unknown record kind with no required
+        # fields, must score 0 so it goes to review rather than loading blind.
+        return 0.0
     total = 0.0
     for record in records:
         present = sum(

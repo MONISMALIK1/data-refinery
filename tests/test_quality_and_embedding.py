@@ -25,6 +25,12 @@ def test_completeness():
     assert completeness([], "invoices") == 0.0
 
 
+def test_completeness_fails_closed_for_unknown_kind():
+    # An unrecognised record kind has no required-field contract; it must score
+    # 0 (-> review) rather than a free pass to the warehouse.
+    assert completeness([{"anything": 1}], "mystery_kind") == 0.0
+
+
 def test_gate_thresholds():
     full = [{"invoice_number": "INV-1", "vendor": "A", "total_amount": 10.0}]
     score, verdict = gate(full, "invoices", base_confidence=1.0)
