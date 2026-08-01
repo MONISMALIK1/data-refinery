@@ -42,3 +42,13 @@ def test_redact_records_cleans_string_fields_only():
     assert "[REDACTED-PHONE]" in cleaned[0]["body"]
     assert cleaned[0]["amount"] == 42.5
     assert types_of(findings) == {"phone"}
+
+
+def test_detects_compact_phone_numbers_without_separators():
+    # Separator-less UAE mobile and compact international formats are common and
+    # must not slip through to the warehouse just because they lack spaces.
+    for number in ("0501234567", "+971501234567"):
+        redacted, findings = scan_and_redact(f"Reach me on {number} anytime")
+        assert "phone" in types_of(findings), number
+        assert number not in redacted
+        assert "[REDACTED-PHONE]" in redacted

@@ -17,6 +17,13 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
     ("emirates_id", re.compile(r"784[-\s]?\d{4}[-\s]?\d{7}[-\s]?\d")),
     ("iban", re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,28}\b")),
     ("email", re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
+    # Compact international numbers, e.g. +971501234567. A leading "+" and a
+    # run of digits is unambiguous PII -- reference/ID codes never start with
+    # "+", so this cannot corrupt a txn_id or invoice number.
+    ("phone", re.compile(r"(?<![\w+-])\+\d{6,15}(?!\d)")),
+    # UAE mobile numbers written without separators, e.g. 0501234567. Scoped to
+    # real mobile prefixes (05[024568]) so ordinary 10-digit IDs are left alone.
+    ("phone", re.compile(r"(?<![\w.\-])0[\s-]?5[024568](?:[\s-]?\d){7}(?!\d)")),
     # The (?<![\w-]) lookbehind stops half-matching reference codes like
     # INV-2026-001, whose numeric tail is phone-shaped.
     (
