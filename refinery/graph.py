@@ -23,7 +23,7 @@ from langgraph.graph import END, START, StateGraph
 from .classify import classify_file
 from .config import TRANSACTIONS_BASELINE
 from .extract import ClaudeExtractor, extract_pdf_text, parse_email_export
-from .fixers import fix_rows
+from .fixers import coerce_types, fix_rows
 from .pii import redact_records, scan_and_redact
 from .profiling import detect_drift, load_csv, profile_rows
 from .quality import gate
@@ -92,12 +92,22 @@ def build_graph(extractor: Optional[ExtractorFn] = None, checkpointer=None):
 
     def fix_csv(state: RefineryState) -> dict:
         if not state["drift"]["has_drift"]:
+            # Columns match the contract, but values may still be messy
+            # (dd/mm/yyyy dates, "1,200.50" amounts). Coerce them so a
+            # correctly-named feed is cleaned, not loaded raw or crashed on.
+            rows = state["rows"]
+            fixes, unfixed = coerce_types(rows, TRANSACTIONS_BASELINE)
             return {
-                "records": state["rows"],
+                "records": rows,
                 "record_kind": "transactions",
-                "base_confidence": 1.0,
-                "extraction_method": "csv",
-                "audit_trail": ["fix: no repairs needed"],
+                "fixes_applied": fixes,
+                "unfixed_issues": unfixed,
+                "base_confidence": 1.0 if not unfixed else 0.5,
+                "extraction_method": "csv" if not fixes else "csv+coerce",
+                "audit_trail": [
+                    f"fix: schema matches baseline; {len(fixes)} value "
+                    f"normalisation(s), {len(unfixed)} unfixed"
+                ],
             }
         fixed, fixes, unfixed = fix_rows(state["rows"], TRANSACTIONS_BASELINE)
         return {

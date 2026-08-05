@@ -1,5 +1,5 @@
 from refinery.config import TRANSACTIONS_BASELINE
-from refinery.fixers import coerce_date, coerce_number, fix_rows
+from refinery.fixers import coerce_date, coerce_number, coerce_types, fix_rows
 
 
 def test_coerce_date_formats():
@@ -60,3 +60,15 @@ def test_fix_rows_reports_unfixable():
     _, _, unfixed = fix_rows(rows, TRANSACTIONS_BASELINE)
     assert any("missing required column 'date'" in issue for issue in unfixed)
     assert any("unparseable number" in issue for issue in unfixed)
+
+
+def test_coerce_types_normalises_without_renames():
+    # A file whose columns already match the baseline still needs value-level
+    # cleaning -- this is the path graph.fix_csv takes when there is no drift.
+    rows = [{"txn_id": "T-1", "date": "05/04/2026", "amount": "1,200.50",
+             "currency": "AED", "merchant": "Acme", "category": "general"}]
+    fixes, unfixed = coerce_types(rows, TRANSACTIONS_BASELINE)
+    assert unfixed == []
+    assert rows[0]["amount"] == 1200.50  # was a string that DuckDB DOUBLE rejects
+    assert rows[0]["date"] == "2026-04-05"  # dd/mm/yyyy -> ISO
+    assert fixes

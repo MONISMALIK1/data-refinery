@@ -36,6 +36,53 @@ def coerce_number(value) -> float | None:
         return None
 
 
+def coerce_types(rows: list[dict], baseline: dict) -> tuple[list[str], list[str]]:
+    """Normalise date and numeric columns in place: dd/mm/yyyy -> ISO,
+    "1,200.50" / "AED 950" -> float. Value-level cleaning only (no renames,
+    no dedup), so it can also run on files whose columns already match the
+    baseline -- which would otherwise skip repair and crash the DOUBLE insert.
+
+    Returns (fixes_applied, unfixed_issues).
+    """
+    fixes: list[str] = []
+    unfixed: list[str] = []
+    if not rows:
+        return fixes, unfixed
+
+    for col in baseline["date_columns"]:
+        if col not in rows[0]:
+            continue
+        converted = 0
+        for r in rows:
+            original = str(r.get(col) or "")
+            iso = coerce_date(original)
+            if iso is None:
+                unfixed.append(f"unparseable date '{original}' in column '{col}'")
+            elif iso != original:
+                r[col] = iso
+                converted += 1
+        if converted:
+            fixes.append(f"normalised {converted} value(s) in '{col}' to ISO dates")
+
+    for col in baseline["numeric_columns"]:
+        if col not in rows[0]:
+            continue
+        converted = 0
+        for r in rows:
+            original = r.get(col)
+            number = coerce_number(original)
+            if number is None:
+                unfixed.append(f"unparseable number '{original}' in column '{col}'")
+            else:
+                if str(original) != str(number):
+                    converted += 1
+                r[col] = number
+        if converted:
+            fixes.append(f"coerced {converted} value(s) in '{col}' to numeric")
+
+    return fixes, unfixed
+
+
 def fix_rows(rows: list[dict], baseline: dict) -> tuple[list[dict], list[str], list[str]]:
     """Repair drifted rows against the baseline contract.
 
@@ -80,38 +127,11 @@ def fix_rows(rows: list[dict], baseline: dict) -> tuple[list[dict], list[str], l
         rows = [{k: v for k, v in r.items() if k not in extra} for r in rows]
         fixes.append(f"dropped unexpected column(s): {', '.join(sorted(extra))}")
 
-    # 5. Coerce dates to ISO.
-    for col in baseline["date_columns"]:
-        if col not in rows[0]:
-            continue
-        converted = 0
-        for r in rows:
-            original = str(r.get(col) or "")
-            iso = coerce_date(original)
-            if iso is None:
-                unfixed.append(f"unparseable date '{original}' in column '{col}'")
-            elif iso != original:
-                r[col] = iso
-                converted += 1
-        if converted:
-            fixes.append(f"normalised {converted} value(s) in '{col}' to ISO dates")
-
-    # 6. Coerce numbers ("1,200.50", "AED 950") to floats.
-    for col in baseline["numeric_columns"]:
-        if col not in rows[0]:
-            continue
-        converted = 0
-        for r in rows:
-            original = r.get(col)
-            number = coerce_number(original)
-            if number is None:
-                unfixed.append(f"unparseable number '{original}' in column '{col}'")
-            else:
-                if str(original) != str(number):
-                    converted += 1
-                r[col] = number
-        if converted:
-            fixes.append(f"coerced {converted} value(s) in '{col}' to numeric")
+    # 5-6. Coerce dates to ISO and numbers to floats (shared with the no-drift
+    # path in graph.fix_csv, so correctly-named feeds get cleaned too).
+    coerce_fixes, coerce_unfixed = coerce_types(rows, baseline)
+    fixes.extend(coerce_fixes)
+    unfixed.extend(coerce_unfixed)
 
     # 7. Drop exact duplicate rows.
     seen: set[tuple] = set()
