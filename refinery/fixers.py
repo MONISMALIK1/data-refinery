@@ -36,6 +36,21 @@ def coerce_number(value) -> float | None:
         return None
 
 
+def _is_plain_number(value) -> bool:
+    """True if value is already numeric, or a string that parses as a number
+    without cleaning. Coercing such a value is a no-op repr change (``"240.00"``
+    -> ``240.0``), not drift worth reporting -- unlike ``"1,150.00"`` or
+    ``"AED 950"``, which only parse after non-numeric characters are stripped.
+    """
+    if isinstance(value, (int, float)):
+        return True
+    try:
+        float(str(value).strip())
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def coerce_types(rows: list[dict], baseline: dict) -> tuple[list[str], list[str]]:
     """Normalise date and numeric columns in place: dd/mm/yyyy -> ISO,
     "1,200.50" / "AED 950" -> float. Value-level cleaning only (no renames,
@@ -73,10 +88,13 @@ def coerce_types(rows: list[dict], baseline: dict) -> tuple[list[str], list[str]
             number = coerce_number(original)
             if number is None:
                 unfixed.append(f"unparseable number '{original}' in column '{col}'")
-            else:
-                if str(original) != str(number):
-                    converted += 1
-                r[col] = number
+                continue
+            # Count a repair only when the raw value was not already a clean
+            # number: stripping "1,150.00" or "AED 950" is a fix, but re-storing
+            # "240.00" as 240.0 is a cosmetic float change, not schema drift.
+            if not _is_plain_number(original):
+                converted += 1
+            r[col] = number
         if converted:
             fixes.append(f"coerced {converted} value(s) in '{col}' to numeric")
 
