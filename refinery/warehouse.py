@@ -77,6 +77,14 @@ def load_results(results: list[dict], db_path: str | Path) -> dict:
         kind = result.get("record_kind")
         name = Path(result["file_path"]).name
 
+        # Idempotent load: re-processing a file replaces its prior data rows
+        # rather than appending duplicates, so running refine.py twice does not
+        # double the warehouse (and a file that flips LOAD -> REVIEW loses its
+        # stale rows). Lineage stays append-only -- it is the audit log of
+        # every run.
+        for table in ("transactions", "invoices", "documents", "chunks"):
+            con.execute(f"DELETE FROM {table} WHERE source_file = ?", [name])
+
         if decision.get("action") == "LOAD" and kind in ("transactions", "invoices", "documents"):
             for r in records:
                 if kind == "transactions":

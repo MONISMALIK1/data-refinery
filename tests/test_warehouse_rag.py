@@ -74,3 +74,17 @@ def test_rag_answer_extractive_mode_cites_sources(tmp_path, monkeypatch):
     assert result["mode"] == "extractive"
     assert "invoice_001.pdf" in result["sources"]
     assert "4520" in result["answer"]
+
+
+def test_load_is_idempotent_on_rerun(tmp_path):
+    # Re-processing the same file must replace its rows, not duplicate them.
+    db = tmp_path / "test.duckdb"
+    load_results([make_result()], db)
+    load_results([make_result()], db)
+
+    con = duckdb.connect(str(db), read_only=True)
+    invoices = con.execute("SELECT count(*) FROM invoices").fetchone()[0]
+    chunks = con.execute("SELECT count(*) FROM chunks").fetchone()[0]
+    con.close()
+    assert invoices == 1  # not 2
+    assert chunks == 1
