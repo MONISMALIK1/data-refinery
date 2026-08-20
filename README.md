@@ -100,7 +100,7 @@ refinery/
     pii.py         PII detection and redaction (phones, emails, IBAN, Emirates ID)
     extract.py     ClaudeExtractor (structured output) + regex fallback
     quality.py     Quality gate: confidence x completeness
-    embedding.py   Local hashed embeddings (no downloads, CI-identical)
+    embedding.py   Local all-MiniLM-L6-v2 embeddings, hashed fallback offline
     warehouse.py   DuckDB tables, vector chunks, lineage
     rag.py         Retrieval + cited answers (Claude or extractive)
     graph.py       LangGraph assembly
