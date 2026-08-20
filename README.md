@@ -81,7 +81,7 @@ SELECT source_file, decision, quality_score, pii_types FROM lineage;
 
 ## Tests
 
-30 offline tests: fixers, PII redaction (including false-positive guards for invoice numbers), extraction, quality gates, embeddings, the warehouse, RAG citations, and full graph runs with injected fake extractors. No API key or network needed.
+34 offline tests: fixers, PII redaction (including false-positive guards for invoice numbers), extraction, quality gates, embeddings, the warehouse, RAG citations, and full graph runs with injected fake extractors. No API key or network needed.
 
 ```bash
 pip install -r requirements-dev.txt
